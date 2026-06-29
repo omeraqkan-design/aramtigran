@@ -1,7 +1,7 @@
 // ══════════════════════════════════════════════
 // Akademîya Aram Tîgran — Service Worker
 // ══════════════════════════════════════════════
-const CACHE = 'aat-cache-v1';
+const CACHE = 'aat-cache-v2';
 const OFFLINE_PAGE = './';
 
 self.addEventListener('install', e => {
