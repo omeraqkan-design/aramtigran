@@ -11010,7 +11010,7 @@ function StudentSurveyView({student, a, lang, toast}) {
                   <button key={ch} onClick={()=>{if(!submitted) setAnswers(p=>({...p,[q.id]:ch}));}}
                     style={{padding:"10px 14px",borderRadius:10,fontSize:12,fontWeight:answers[q.id]===ch?700:400,
                       background:answers[q.id]===ch?a.bg:"#f8fafc",
-                      color:answers[q.id]===ch?"#16293f":"#16293f",
+                      color:"#16293f",
                       border:`1.5px solid ${answers[q.id]===ch?a.color:"var(--border)"}`,
                       cursor:submitted?"default":"pointer",textAlign:"left",display:"flex",alignItems:"center",gap:10}}>
                     <span style={{width:16,height:16,borderRadius:"50%",border:`2px solid ${answers[q.id]===ch?a.color:"var(--border2)"}`,
