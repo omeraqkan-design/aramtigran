@@ -10043,6 +10043,31 @@ function TeacherPanel({teacher,students,schedule,t,lang,toast,onLogout,onDataCha
     };
   }
 
+  // QR'ı yenile — yeni bir kod üret, eski QR geçersiz olur, yoklamalar korunur
+  function regenerateQR(){
+    const s = window._aat_qr_session;
+    if(!s || !s.active){ return; }
+    const oldId = s.sessionId;
+    const newId = generateSessionToken(s.lessonId || ("manual_"+Date.now()), teacher.id);
+    s.sessionId = newId; // yerel oturum aynı kalır (checkins korunur), sadece kimlik yenilenir
+    try{
+      if(window.__FB && window.__FB.isConfigured()){
+        // Yeni oturum dokümanı — öğrenciler yeni QR'ı doğrulayabilsin
+        window.__FB.setDoc(window.__FB.doc(window.__FB.db,"qrSessions",newId),{
+          sessionId:newId, lessonName:s.lessonName, teacherName:s.teacherName, area:s.area,
+          openedAt: window.__FB.serverTimestamp(), expiresAt: s.expiresAt, active:true
+        });
+        // Eski QR'ı geçersiz kıl
+        window.__FB.setDoc(window.__FB.doc(window.__FB.db,"qrSessions",oldId),{active:false},{merge:true});
+      }
+    }catch(e){}
+    // Çıktı/print de yeni QR'ı kullansın
+    window._aat_printQR = function(){ openQRPrintPage(buildQRContent(newId), s.lessonName, teacher.name, null, lang); };
+    setQrToken(newId);
+    setActiveQRSession({...s});
+    toast(lang==="en"?"🔄 New QR generated — old one is now invalid":lang==="de"?"🔄 Neuer QR erzeugt — alter ungültig":"🔄 QR ya nû hat çêkirin — ya kevn betal bû");
+  }
+
   // QR otomatik açılmaz — öğretmen panelde manuel olarak başlatır
   const autoOpened = useRef(false);
 
@@ -10792,6 +10817,7 @@ function TeacherPanel({teacher,students,schedule,t,lang,toast,onLogout,onDataCha
         myStudents={myStudents}
         students={students}
         lang={lang}
+        onRegenerate={regenerateQR}
         onClose={closeLessonQR}
       />
     )}
@@ -12855,14 +12881,14 @@ function TeacherQRDisplayModal(props){
   return React.createElement(TeacherQRDisplay,props);
 }
 
-function TeacherQRDisplay({token, lessonName, teacherName, areaColor, onClose, students, myStudents, lang}){
+function TeacherQRDisplay({token, lessonName, teacherName, areaColor, onClose, onRegenerate, students, myStudents, lang}){
   const qrRef    = useRef(null);
   const pollRef  = useRef(null);
   const [checkins, setCheckins] = useState(()=>getSessionCheckins());
   const [scanCardMode, setScanCardMode] = useState(false);
-  const qrContent = buildQRContent(token); // sabit, değişmez
+  const qrContent = buildQRContent(token); // token yenilenince değişir
 
-  // QR bir kere render et
+  // QR'ı token (qrContent) her değiştiğinde yeniden çiz — "QR yenile" çalışsın
   useEffect(()=>{
     if(!qrRef.current || !window.QRCode) return;
     qrRef.current.innerHTML = "";
@@ -12874,7 +12900,7 @@ function TeacherQRDisplay({token, lessonName, teacherName, areaColor, onClose, s
       colorLight: "#ffffff",
       correctLevel: window.QRCode.CorrectLevel.M  // M = hızlı üret, QR daha temiz
     });
-  }, []);
+  }, [qrContent]);
 
   // Check-in listesini 1sn'de bir güncelle
   useEffect(()=>{
@@ -12990,8 +13016,8 @@ function TeacherQRDisplay({token, lessonName, teacherName, areaColor, onClose, s
           <button onClick={()=>{closeQRSession();onClose();}} style={{padding:"10px",background:"var(--red-bg)",border:"0.5px solid var(--red)",borderRadius:8,color:"var(--red)",fontSize:13,fontWeight:600,cursor:"pointer"}}>
             ✕ {lang==="en"?"Close":lang==="de"?"Schließen":"Bigire"}
           </button>
-          <button onClick={()=>setCheckins(getSessionCheckins())} style={{padding:"10px",background:"var(--green-bg)",border:"0.5px solid var(--green)",borderRadius:8,color:"var(--green)",fontSize:13,fontWeight:600,cursor:"pointer"}}>
-            🔄 {lang==="en"?"Refresh":lang==="de"?"Aktualisieren":"Nûve bike"}
+          <button onClick={()=>{ onRegenerate&&onRegenerate(); setCheckins(getSessionCheckins()); }} style={{padding:"10px",background:"var(--green-bg)",border:"0.5px solid var(--green)",borderRadius:8,color:"var(--green)",fontSize:13,fontWeight:600,cursor:"pointer"}}>
+            🔄 {lang==="en"?"New QR":lang==="de"?"Neuer QR":"QR ya Nû"}
           </button>
         </div>
       </div>
