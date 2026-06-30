@@ -1323,6 +1323,12 @@ async function hashPassword(password) {
   const hashArray = Array.from(new Uint8Array(hashBuffer));
   return hashArray.map(b => b.toString(16).padStart(2, "0")).join("");
 }
+// Varsayılan "1234" şifresinin SHA-256 hash'i — ilk girişte zorunlu değişim için
+const DEFAULT_PASS_HASH = "03ac674216f3e15c761ee1a5e255f067953623c8b388b4459e13f978d7c846f4";
+function isDefaultPassword(u){
+  return !!u && (u.pass === "1234" || u.pass === DEFAULT_PASS_HASH
+                 || u.passHash === "1234" || u.passHash === DEFAULT_PASS_HASH);
+}
 async function verifyPassword(plain, storedHash) {
   if (!storedHash) return false;
   if (storedHash.length !== 64) return plain === storedHash; // legacy
@@ -14225,13 +14231,32 @@ function App(){
       {screen==="forgot"&&(
         <ForgotScreen t={t} lang={lang} onBack={()=>setScreen("login")} onSuccess={()=>toast("✓ "+t.forgotSuccess)} students={students} teachers={teachers} onDataChange={onDataChange}/>
       )}
-      {screen==="admin"&&currentUser&&(
+      {/* İlk girişte varsayılan "1234" şifresi → zorunlu değişim (panel açılmaz) */}
+      {currentUser && (screen==="admin"||screen==="teacher"||screen==="student") && isDefaultPassword(currentUser) && (
+        <div style={{position:"fixed",inset:0,zIndex:600,background:"var(--bg3)"}}>
+          <StudentChangePassSheet
+            onClose={()=>{}}
+            toast={toast}
+            lang={lang}
+            user={currentUser}
+            userType={currentUser.type==="student"?"student":"teacher"}
+            onSavePass={(newHash,newPlain)=>onDataChange&&onDataChange(
+              currentUser.type==="student"?"updateStudent":"updateTeacher",
+              {...currentUser,pass:newHash,passHash:newHash,_plainPass:newPlain}
+            )}
+          />
+          <button onClick={handleLogout} style={{position:"fixed",top:"calc(env(safe-area-inset-top,0px) + 12px)",right:16,zIndex:601,background:"rgba(0,0,0,0.5)",color:"#fff",border:"none",borderRadius:8,padding:"7px 12px",fontSize:12,fontWeight:600,cursor:"pointer"}}>
+            {lang==="en"?"Sign out":lang==="de"?"Abmelden":"Derkeve"}
+          </button>
+        </div>
+      )}
+      {screen==="admin"&&currentUser&&!isDefaultPassword(currentUser)&&(
         <AdminPanel admin={currentUser} students={students} teachers={teachers} schedule={schedule} t={t} lang={lang} toast={toast} onLogout={handleLogout} onDataChange={onDataChange} onSettings={()=>setShowSettings(true)} dark={dark} onThemeToggle={()=>setDark(d=>!d)}/>
       )}
-      {screen==="teacher"&&currentUser&&(
+      {screen==="teacher"&&currentUser&&!isDefaultPassword(currentUser)&&(
         <TeacherPanel teacher={currentUser} students={students} schedule={schedule} t={t} lang={lang} toast={toast} onLogout={handleLogout} onDataChange={onDataChange} onSettings={()=>setShowSettings(true)}/>
       )}
-      {screen==="student"&&currentUser&&(
+      {screen==="student"&&currentUser&&!isDefaultPassword(currentUser)&&(
         <StudentPanel student={currentUser} schedule={schedule} t={t} lang={lang} toast={toast} onLogout={handleLogout} onDataChange={onDataChange} onSettings={()=>setShowSettings(true)}/>
       )}
       <Toast msg={toastMsg}/>
